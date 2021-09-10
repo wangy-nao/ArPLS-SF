@@ -124,8 +124,8 @@ def find_mask(residual,t_sample,f_sample,factor):
 
 
 ''' generate the mask file '''
-def write_mask(filename,mask):
-    basename = filename[filename.find('J0528'):filename.find('.fits')]
+def write_mask(filename,mask,source_name):
+    basename = filename[filename.find(source_name):filename.find('.fits')]
     hdu = pyfits.open(filename)
     time_sig=np.float64(10.0)
     freq_sig=np.float64(4.0)
@@ -189,7 +189,7 @@ def write_mask(filename,mask):
     f.close()
 
 
-def out(matrix1, d_clean, filename):
+def out(matrix1, d_clean, filename, source_name):
     std1 = do_rms(matrix1,config.t_shape,config.f_shape)
     std2 = do_rms(d_clean,config.t_shape,config.f_shape)
     matrix3 = d_clean*std1/std2
@@ -202,12 +202,11 @@ def out(matrix1, d_clean, filename):
     for j in range(len(mask2)):
         mask2[j] = mask[j//insert_step]
     filepath = filename
-    filepath = filepath.replace('\\J0528+2200\\','\\data\\')
     #data = readfits(filepath)
     #data = np.ma.array(data,mask=mask2)
     #plot_mask(data,filename)
     mask = mask.astype('int32')
-    write_mask(filepath,mask)
+    write_mask(filepath,mask,source_name)
   
 
 

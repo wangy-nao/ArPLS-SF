@@ -36,11 +36,14 @@ def make_matrix(D_ms,correlation):
     correlation_cpu = torch.tensor(correlation.reshape(-1,beam,beam))
     u_cpu, s_cpu, vh_cpu = torch.svd(correlation_cpu)
     u_cpu = u_cpu.reshape(t_sample,f_sample,beam,beam)
-    #correlation_gpu = torch.tensor(correlation.reshape(-1,beam,beam),device=cuda0)
-    #u_gpu, s_gpu, vh_gpu = torch.svd(correlation_gpu)
-    #u_gpu = u_gpu.reshape(t_sample,f_sample,beam,beam)
-    #u_cpu = u_gpu.cpu()
-    #torch.cuda.empty_cache()
+    '''
+    correlation_gpu = torch.tensor(correlation.reshape(-1,beam,beam),device=cuda0)
+    u_gpu, s_gpu, vh_gpu = torch.svd(correlation_gpu)
+    u_gpu = u_gpu.reshape(t_sample,f_sample,beam,beam)
+    u_cpu = u_gpu.cpu()
+    u_cpu = u_cpu.reshape(t_sample,f_sample,beam,beam)
+    torch.cuda.empty_cache()
+    '''
     u = np.array(u_cpu)
     spectrum = np.zeros((t_shape,f_shape,beam))
     for i in range(t_shape):

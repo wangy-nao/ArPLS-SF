@@ -45,7 +45,6 @@ if __name__=='__main__':
             d = d-1
     number_key = set(number)
     print(number_key)
-    #print(fileList)
 
     if not os.path.exists('result/'):
         os.mkdir("result/")
@@ -62,6 +61,8 @@ if __name__=='__main__':
         ### data load
         start_load = time.time()
         data,filename = rw.read_fits(path)
+        source_name = filename[0][filename[0].find('J'):filename[0].find('_arcdrift')]
+        print(filename[0],source_name)
         end_load = time.time()
         print('data load cost:'+str(end_load-start_load))
         if config.debug:
@@ -87,7 +88,7 @@ if __name__=='__main__':
         threads = []
         for i in range(beam):
             threads.append(
-                Thread(target=rw.out, args=(matrix1[i],d_clean[i],filename[i],))
+                Thread(target=rw.out, args=(matrix1[i],d_clean[i],filename[i],source_name,))
                 )
         
         for thread in threads:
