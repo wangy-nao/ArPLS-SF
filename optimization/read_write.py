@@ -1,17 +1,19 @@
 import astropy.io.fits as pyfits
-from astropy.io.fits import file
 import numpy as np
 import matplotlib.pyplot as plt
+from numpy.core.fromnumeric import std
 import config
 import os,sys,glob
-from threading import Thread
+from threading import Lock, Thread
 from decimal import Decimal
 from copy import copy
+from numba import njit, prange
+import threading
 
+lock = threading.Lock()
 beam = config.beam
 t_shape = config.t_shape
 f_shape = config.f_shape
-
 
 ### thread class to get the results from different threads
 class MyThread(Thread):
@@ -66,17 +68,18 @@ def plot_rawdata(data,types):
         plt.close()
 
 
-def plot_mask2(mask,i):
+def plot_mask2(mask,filename,source_name):
     l,m=mask.shape
     #mask = 1-mask
     fig=plt.figure()
+    basename = filename[filename.find('\\'+source_name):filename.find('.fits')]
     plt.imshow(mask,
             aspect='auto',
             rasterized=True,
             interpolation='nearest',
             cmap='hot',extent=(0,m,0,l),
         )
-    figure_name = config.path2save + 'M' + str(i+1)+ '_residual' + '.png'
+    figure_name = config.path2save + basename + '_clean' + '.png'
     plt.xlabel("Channel")
     plt.ylabel("Interval Number")
     plt.title('Spatial Filter')
@@ -85,10 +88,10 @@ def plot_mask2(mask,i):
     plt.close()
 
 
-def plot_mask(mask,filename):
+def plot_mask(mask,filename,source_name):
     palette=copy(plt.cm.hot)
     palette.set_bad('cyan', 1.0)
-    basename = filename[filename.find('J0528'):filename.find('.fits')]
+    basename = filename[filename.find('\\'+source_name):filename.find('.fits')]
     l,m=mask.shape
     plt.imshow(mask,
             aspect='auto',
@@ -105,9 +108,10 @@ def plot_mask(mask,filename):
 
 
 ### generate the mask data ###
-def find_mask(residual,t_sample,f_sample,factor):
+def find_mask(residual,t_sample,f_sample,threshold=0):
+    #threshold=np.zeros_like(residual)
     a = residual.reshape(-1)
-    threshold = np.mean(a)+ factor*np.std(a, ddof = 1)
+    threshold = np.mean(a)+ config.factor*np.std(a, ddof = 1)    
     for i in range(t_sample):
         for j in range(f_sample):
             if residual[i][j] < threshold:
@@ -123,9 +127,35 @@ def find_mask(residual,t_sample,f_sample,factor):
     return residual.astype(np.uint8)
 
 
-''' generate the mask file '''
+def slide_window(V, M = 40, N = 40, sigma_m=0.5, sigma_n=0.5):
+    def wd(n, m, sigma_n, sigma_m):
+        return np.exp(-n**2/(2*sigma_n**2) - m**2/(2*sigma_m**2))
+
+    Vp = np.zeros((V.shape[0]+N, V.shape[1]+M))
+    Vp[N//2:-N//2,M//2:-M//2] = V[:]
+    Vp[0:N//2,:] = Vp[N:N//2:-1,:]
+    Vp[V.shape[0]+N//2:V.shape[0]+N,:] = Vp[V.shape[0]+N//2:V.shape[0]:-1,:]
+    Vp[:, 0:M//2] = Vp[:,M:M//2:-1]
+    Vp[:,V.shape[1]+M//2:V.shape[1]+M] = Vp[:,V.shape[1]+M//2:V.shape[1]:-1]
+
+    n = np.arange(-N//2,N//2)
+    m = np.arange(-M//2,M//2)
+    kernel_n = wd(n,0,sigma_n,sigma_m)
+    kernel_m = wd(0,m,sigma_n,sigma_m)
+    kernel_n = kernel_n.reshape(1,-1)
+    kernel_m = kernel_m.reshape(-1,1)
+    #kernel_N, kernel_M = np.meshgrid(kernel_n,kernel_m)
+    threshold = np.zeros_like(V)
+    for i in prange(N//2,V.shape[0]+N//2):
+        for j in prange(M//2,V.shape[1]+M//2):
+            avg = np.mean(np.dot(kernel_n,np.dot(Vp[i-N//2:i+N//2, j-M//2:j+M//2],kernel_m)))
+            std = np.std(np.dot(kernel_n,np.dot(Vp[i-N//2:i+N//2, j-M//2:j+M//2],kernel_m)))
+            threshold[i-N//2,j-M//2] = avg + config.factor * std
+    return threshold
+
+### generate the mask file 
 def write_mask(filename,mask,source_name):
-    basename = filename[filename.find(source_name):filename.find('.fits')]
+    basename = filename[filename.find('\\'+source_name):filename.find('.fits')]
     hdu = pyfits.open(filename)
     time_sig=np.float64(10.0)
     freq_sig=np.float64(4.0)
@@ -194,19 +224,21 @@ def out(matrix1, d_clean, filename, source_name):
     std2 = do_rms(d_clean,config.t_shape,config.f_shape)
     matrix3 = d_clean*std1/std2
     residual = matrix1 - matrix3
-    #plot_mask2(residual,i)
-    mask = find_mask(residual,t_shape,f_shape,config.factor)
+    #threshold = slide_window(residual)
+    mask = find_mask(residual,t_shape,f_shape)
     mask = mask.astype(bool)
     insert_step=int(config.t_shape/config.subint)
     mask2 = np.zeros((int(config.subint),config.f_shape),dtype=bool)
     for j in range(len(mask2)):
         mask2[j] = mask[j//insert_step]
-    filepath = filename
-    #data = readfits(filepath)
-    #data = np.ma.array(data,mask=mask2)
-    #plot_mask(data,filename)
     mask = mask.astype('int32')
-    write_mask(filepath,mask,source_name)
+    write_mask(filename,mask,source_name)
+    data = readfits(filename)
+    data = np.ma.array(data,mask=mask2)
+    with lock:
+        plot_mask2(d_clean,filename,source_name)
+        plot_mask(data,filename,source_name)
+
   
 
 
@@ -223,8 +255,8 @@ def read_fit(filename):
         l,m,n = pol0_data.shape
         if config.debug:
             print('pol0_data shape is',pol0_data.shape)
-        t_step = int(l*m/config.t_shape) #time
-        f_step = int(n/config.f_shape)
+        t_step = int(l*m/config.t_sample)
+        f_step = int(config.f_sample/config.f_shape)
         p0_data = pol0_data.reshape(config.t_shape,t_step,n).mean(axis=1)
         p0_data = p0_data.reshape(config.t_shape,config.f_shape,f_step).mean(axis=-1).squeeze()
     return p0_data
@@ -251,4 +283,15 @@ def read_fits(path):
     for thread in threads: 
         data.append(thread.get_result())
     data=np.array(data)
+    #np.save('sample_data.npy',data)
+    #np.save('sample_filename.npy',f_name)
     return data,f_name
+
+
+def read_sample_data(filename='sample_data.npy'):
+    data = np.load(filename)
+    return data
+
+def read_sample_filename(filename='sample_filename.npy'):
+    f_name = np.load(filename)
+    return f_name

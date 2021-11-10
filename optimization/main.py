@@ -8,6 +8,7 @@ import spatial_filter as sf
 import read_write as rw
 import baseline_removal as baseline
 
+obs_mode = ['_tracking','_arcdrift']
 
 def t_split(name):
         filename, extension = os.path.splitext(name)
@@ -26,6 +27,8 @@ def text_split(name):
 
 ### main code ###
 if __name__=='__main__':
+    import warnings
+    warnings.filterwarnings('ignore')
     time_start=time.time()
     t_sample = config.t_sample
     f_sample = config.f_sample
@@ -60,9 +63,15 @@ if __name__=='__main__':
                 delta = delta -1		
         ### data load
         start_load = time.time()
+        ### read the original fits files
         data,filename = rw.read_fits(path)
-        source_name = filename[0][filename[0].find('J'):filename[0].find('_arcdrift')]
-        print(filename[0],source_name)
+        ### test the code with sample data
+        #data = rw.read_sample_data('sample_data.npy')
+        #filename = rw.read_sample_filename('sample_filename.npy')
+        for mode in obs_mode:
+            if filename[0].find(mode) != -1:
+                source_name = filename[0][filename[0].find('\J'):filename[0].find(mode)][1:]
+        print('Source name:',source_name)
         end_load = time.time()
         print('data load cost:'+str(end_load-start_load))
         if config.debug:
@@ -85,6 +94,10 @@ if __name__=='__main__':
         print('matrix1 shape is :', matrix1.shape)
 
         ### flagging RFI and generating mask files
+        #for i in range(beam):
+        #    rw.out(matrix1[i],d_clean[i],filename[i],source_name)
+        
+        
         threads = []
         for i in range(beam):
             threads.append(
@@ -96,6 +109,7 @@ if __name__=='__main__':
 
         for thread in threads:
             thread.join()
+        
     write_stop = time.time()
     print('write mask files cost:'+str(write_stop-end_filter))       
 
