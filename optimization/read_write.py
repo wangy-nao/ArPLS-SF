@@ -169,7 +169,7 @@ def write_mask(filename,mask,source_name):
     lofreq = np.float64(lofreq)
     df = np.float64(hdu[1].header['chan_bw'])
     nchan = np.int32(hdu[1].header['nchan'])
-    nint = np.int32(config.t_sample)
+    nint = np.int32(config.t_shape)
     ptsperint = config.t_shape * config.subint / config.t_sample
     ptsperint = np.int32(ptsperint)
     dtint = np.float64(ptsperint * tsamp)
@@ -255,8 +255,8 @@ def read_fit(filename):
         l,m,n = pol0_data.shape
         if config.debug:
             print('pol0_data shape is',pol0_data.shape)
-        t_step = int(l*m/config.t_sample)
-        f_step = int(config.f_sample/config.f_shape)
+        t_step = int(l*m/config.t_shape)
+        f_step = int(n/config.f_shape)
         p0_data = pol0_data.reshape(config.t_shape,t_step,n).mean(axis=1)
         p0_data = p0_data.reshape(config.t_shape,config.f_shape,f_step).mean(axis=-1).squeeze()
     return p0_data

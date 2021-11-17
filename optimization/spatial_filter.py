@@ -39,7 +39,7 @@ def make_covariance_matrix(data):
     D = D.reshape(beam,beam,t_sample,t_step,f_shape).mean(axis=3)
     D = D.reshape(beam,beam,t_sample,f_shape,f_step).mean(axis=-1).squeeze()
     D = np.transpose(D,(2,3,0,1))
-    print('correlation shape:',D.shape)
+    print('filter shape:',D.shape)
     #plot_covariance(D_ms)
     return D_ms,D
 
