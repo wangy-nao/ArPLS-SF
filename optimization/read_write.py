@@ -1,7 +1,7 @@
 import astropy.io.fits as pyfits
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy.core.fromnumeric import std
+from numpy.core.fromnumeric import shape, std
 import config
 import os,sys,glob
 from threading import Lock, Thread
@@ -68,7 +68,7 @@ def plot_rawdata(data,types):
         plt.close()
 
 
-def plot_mask2(mask,filename,source_name):
+def plot_clean(mask,filename,source_name):
     l,m=mask.shape
     #mask = 1-mask
     fig=plt.figure()
@@ -227,20 +227,16 @@ def out(matrix1, d_clean, filename, source_name):
     #threshold = slide_window(residual)
     mask = find_mask(residual,t_shape,f_shape)
     mask = mask.astype(bool)
-    insert_step=int(config.t_shape/config.subint)
-    mask2 = np.zeros((int(config.subint),config.f_shape),dtype=bool)
-    for j in range(len(mask2)):
-        mask2[j] = mask[j//insert_step]
+    insert_step=int(config.t_shape/config.t_shape)
     mask = mask.astype('int32')
     write_mask(filename,mask,source_name)
     data = readfits(filename)
-    data = np.ma.array(data,mask=mask2)
+    data = np.ma.array(data,mask=mask)
     with lock:
-        plot_mask2(d_clean,filename,source_name)
+        plot_clean(d_clean,filename,source_name)
         plot_mask(data,filename,source_name)
 
   
-
 
 def read_fit(filename):
     if os.path.splitext(filename)[-1]=='.fits':
@@ -261,6 +257,29 @@ def read_fit(filename):
         p0_data = p0_data.reshape(config.t_shape,config.f_shape,f_step).mean(axis=-1).squeeze()
     return p0_data
 
+
+'''
+### test for M31_Halo_Drift data  ###
+def read_fit(filename):
+    if os.path.splitext(filename)[-1]=='.fits':
+        hdulist = pyfits.open(filename)
+        hdu1 = hdulist[1]
+        data1 = hdu1.data['data']
+        a,b,c = data1.shape
+        data1 = data1.reshape(a,config.f_shape,int(b/config.f_shape),c).mean(axis=2)
+        a,b,c = data1.shape
+        if (a != config.subint) | (b != config.f_shape):
+            print('data shape is wrong!')
+        pol0_data = data1[:,:,int(config.pol_num)].squeeze()
+        l,m = pol0_data.shape
+        if config.debug:
+            print('pol0_data shape is',pol0_data.shape)
+        t_step = int(l/config.t_shape)
+        f_step = int(m/config.f_shape)
+        p0_data = pol0_data.reshape(config.t_shape,t_step,m).mean(axis=1)
+        p0_data = p0_data.reshape(config.t_shape,config.f_shape,f_step).mean(axis=-1).squeeze()
+    return p0_data
+'''
 
 ### multi threads read_fits code
 def read_fits(path):

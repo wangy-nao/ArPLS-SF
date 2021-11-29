@@ -1,12 +1,15 @@
 # -*- coding: UTF-8 -*- 
-import numpy as np
 import time
 import os,sys
 from threading import Thread
+import warnings
+
 import config
 import spatial_filter as sf
 import read_write as rw
 import baseline_removal as baseline
+
+warnings.filterwarnings('ignore')
 
 obs_mode = ['_tracking','_arcdrift']
 
@@ -49,8 +52,8 @@ if __name__=='__main__':
     number_key = set(number)
     print(number_key)
 
-    if not os.path.exists('result/'):
-        os.mkdir("result/")
+    if not os.path.exists(config.path2save):
+        os.mkdir(config.path2save)
 
     for key in number_key:
         filenames = []

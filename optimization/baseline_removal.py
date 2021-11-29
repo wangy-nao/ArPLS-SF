@@ -5,7 +5,7 @@ from multiprocessing import Pool
 
 
 
-def ArPLS(y, lam=1e4, ratio=0.05, itermax=10):
+def ArPLS(y, lam=1e4, ratio=0.05, itermax=20):
     '''
     copy from https://irfpy.irf.se/projects/ica/_modules/irfpy/ica/baseline.html
     
@@ -35,15 +35,18 @@ def ArPLS(y, lam=1e4, ratio=0.05, itermax=10):
     D = D[1:] - D[:-1]
     D = D.T
     w = np.ones(N)
+    lam = lam * np.ones(N)
     for i in range(itermax):
         W = sparse.diags(w, 0, shape=(N, N))
-        Z = W + lam * D.dot(D.T)
+        LAM = sparse.diags(lam, 0, shape=(N, N))
+        Z = W + LAM * D.dot(D.T)
         z = spsolve(Z, w * y)
         d = y - z
         dn = d[d < 0]
         m = np.mean(dn)
         s = np.std(dn)
         wt = 1. / (1 + np.exp(2 * (d - (2 * s - m)) / s))
+        #lam = lam * (1-wt)
         if np.linalg.norm(w - wt) / np.linalg.norm(w) < ratio:
             break
         w = wt        
