@@ -3,6 +3,7 @@ import time
 import os,sys
 from threading import Thread
 import warnings
+import numpy as np
 
 import config
 import spatial_filter as sf
@@ -85,10 +86,11 @@ if __name__=='__main__':
         data = baseline.baseline_removal(data)
         end_baseline = time.time()
         print('baseline removal cost:'+str(end_baseline-start_baseline))
-
+        np.save(config.path2save+'raw_data.npy',data)
         ### spatial filter
         D_ms,correlation =  sf.make_covariance_matrix(data)
         d_clean = sf.make_matrix(D_ms,correlation)
+        np.save(config.path2save+'clean_data.npy',d_clean)
         end_filter = time.time()
         print('filter cost:'+str(end_filter-end_baseline))
         matrix1 = data.reshape(beam,t_shape,f_shape,-1).mean(axis=-1)
@@ -113,8 +115,8 @@ if __name__=='__main__':
         for thread in threads:
             thread.join()
         
-    write_stop = time.time()
-    print('write mask files cost:'+str(write_stop-end_filter))       
+        write_stop = time.time()
+        print('write mask files cost:'+str(write_stop-end_filter))       
 
     time_end=time.time()
     print('totally cost',time_end-time_start)

@@ -245,41 +245,19 @@ def read_fit(filename):
         data1 = hdu1.data['data']
         data1 = data1.squeeze()
         a,b,c,d = data1.shape
-        if (a != config.subint) | (d != config.f_shape) :
-            print('data shape is wrong!')
-        pol0_data = data1[:,:,int(config.pol_num),:].squeeze()
-        l,m,n = pol0_data.shape
+        if (a != config.subint) | (b != config.nsblk) | (d != config.f_shape) :
+            print('data shape is wrong! The data shape should be (%d,%d,%d,%d)'%(a,b,c,d))
+            sys.exit(0)
+        p0_data = data1[:,:,int(config.pol_num),:].squeeze()
+        l,m,n = p0_data.shape
         if config.debug:
-            print('pol0_data shape is',pol0_data.shape)
+            print('pol0_data shape is',p0_data.shape)
         t_step = int(l*m/config.t_shape)
         f_step = int(n/config.f_shape)
-        p0_data = pol0_data.reshape(config.t_shape,t_step,n).mean(axis=1)
+        p0_data = p0_data.reshape(config.t_shape,t_step,n).mean(axis=1)
         p0_data = p0_data.reshape(config.t_shape,config.f_shape,f_step).mean(axis=-1).squeeze()
     return p0_data
 
-
-'''
-### test for M31_Halo_Drift data  ###
-def read_fit(filename):
-    if os.path.splitext(filename)[-1]=='.fits':
-        hdulist = pyfits.open(filename)
-        hdu1 = hdulist[1]
-        data1 = hdu1.data['data']
-        a,b,c = data1.shape
-        data1 = data1.reshape(a,config.f_shape,int(b/config.f_shape),c).mean(axis=2)
-        a,b,c = data1.shape
-        if (a != config.subint) | (b != config.f_shape):
-            print('data shape is wrong!')
-        pol0_data = data1[:,:,int(config.pol_num)].squeeze()
-        l,m = pol0_data.shape
-        if config.debug:
-            print('pol0_data shape is',pol0_data.shape)
-        t_step = int(l/config.t_shape)
-        f_step = int(m/config.f_shape)
-        p0_data = pol0_data.reshape(config.t_shape,t_step,m).mean(axis=1)
-        p0_data = p0_data.reshape(config.t_shape,config.f_shape,f_step).mean(axis=-1).squeeze()
-    return p0_data
-'''
 
 ### multi threads read_fits code
 def read_fits(path):
